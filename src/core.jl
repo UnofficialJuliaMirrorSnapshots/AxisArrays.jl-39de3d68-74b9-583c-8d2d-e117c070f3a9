@@ -81,8 +81,11 @@ Base.length(A::Axis) = length(A.val)
 (A::Axis{name})(i) where {name} = Axis{name}(i)
 Base.convert(::Type{Axis{name,T}}, ax::Axis{name,T}) where {name,T} = ax
 Base.convert(::Type{Axis{name,T}}, ax::Axis{name}) where {name,T} = Axis{name}(convert(T, ax.val))
-Base.iterate(a::Axis) = (a, nothing)
-Base.iterate(::Axis, ::Any) = nothing
+Base.iterate(A::Axis, i...) = Base.iterate(A.val, i...)
+
+Base.IteratorSize(::Type{<:Axis}) = Base.HasShape{1}()
+Base.IteratorEltype(::Type{<:Axis}) = Base.HasEltype()
+
 Base.iterate(::Type{T}) where {T<:Axis} = (T, nothing)
 Base.iterate(::Type{T}, ::Any) where {T<:Axis} = nothing
 
@@ -271,13 +274,10 @@ Given an AxisArray and an Axis, return the integer dimension of
 the Axis within the array.
 """
 axisdim(A::AxisArray, ax::Axis) = axisdim(A, typeof(ax))
-@generated function axisdim(A::AxisArray, ax::Type{Ax}) where Ax<:Axis
-    dim = axisdim(A, Ax)
-    :($dim)
-end
+axisdim(A::AxisArray, ax::Type{Ax}) where Ax<:Axis = axisdim(typeof(A), Ax)
 # The actual computation is done in the type domain, which is a little tricky
 # due to type invariance.
-function axisdim(::Type{AxisArray{T,N,D,Ax}}, ::Type{<:Axis{name,S} where S}) where {T,N,D,Ax,name}
+@generated function axisdim(::Type{AxisArray{T,N,D,Ax}}, ::Type{<:Axis{name,S} where S}) where {T,N,D,Ax,name}
     isa(name, Int) && return name <= N ? name : error("axis $name greater than array dimensionality $N")
     names = axisnames(Ax)
     idx = findfirst(isequal(name), names)
